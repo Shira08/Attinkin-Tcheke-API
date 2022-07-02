@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pharmacy;
+use Illuminate\Http\Request;
 use App\Http\Requests\StorePharmacyRequest;
 use App\Http\Requests\UpdatePharmacyRequest;
 use App\Http\Resources\PharmacyResource;
 use Validator;
+use Hash;
+use Session;
+use DB;
 
 class PharmacyController extends Controller
 {
@@ -139,5 +143,136 @@ class PharmacyController extends Controller
     {
         $pharmacy->delete();
         return response()->json('Pharmacy deleted successfully');
+    }
+
+    public function pharmacyLogin() {
+        return view( 'logins.pharmacy-login' );
+    }
+
+    public function login( Request $request ) {
+        $request->validate( [
+            'email'=>'required',
+            'password'=>'required|min:5|max:12'
+        ] );
+
+        $email = $request->email;
+        $password = $request->password;
+
+        /* $login = DB::table( 'pharmacies' )
+        ->where( 'email', '=', $email )
+        ->where( 'password', '=', $password )
+        ->first();
+        */
+        $login = Pharmacy::where( 'email', $email )->first( [ 'id', 'password' ] );
+        //dd( $login );
+        if ( $login ) {
+            if ( hash::check( $request->password, $login->password ) ) {
+                $request->session()->put( 'loginId', $login->id );
+                return redirect( 'dashboard-pharmacy' );
+            } else {
+                return back()->with( 'fail', ' pass not good' );
+            }
+        } else {
+            return back()->with( 'fail', 'Email or pass not good' );
+        }
+    }
+
+    public function addPharmacy() {
+        return view( 'pages.pharmacy' );
+    }
+
+    public function savePharmacy( Request $request ) {
+        $request->validate( [
+            'pharmacy_name'=>'required',
+            'email'=>'required|email|unique:pharmacies',
+            'contact'=>'required|max:17',
+            'address'=>'required',
+            'horaire'=>'required',
+            'password'=>'required|min:5|max:12'
+        ] );
+        $longitude = 6.36496;
+        $latitude = 2.45186;
+
+        $pharmacy = new Pharmacy();
+
+        $pharmacy->pharmacy_name = $request->pharmacy_name;
+        $pharmacy->email = $request->email;
+        $pharmacy->contact = $request->contact;
+        $pharmacy->address = $request->address;
+        $pharmacy->horaire = $request->horaire;
+        $pharmacy->garde = $request->garde;
+        $pharmacy->longitude = $longitude;
+        $pharmacy->latitude = $latitude;
+        $pharmacy->password = Hash::make( $request->password );
+        $res = $pharmacy->save();
+
+        if ( $res ) {
+            return back()->with( 'success', 'youre boss' );
+
+        } else {
+            return back()->with( 'fail', 'Something wrong' );
+        }
+    }
+
+    public function displayPharmacy() {
+        $displayData = Pharmacy::all();
+
+        return view( 'pages/pharmacy-list', compact( 'displayData' ) );
+    }
+
+    public function editPharmacy( $id ) {
+        $data = DB::table( 'pharmacies' )->where( 'id', $id )->first();
+        return view( 'pages/edit-pharmacy', compact( 'data' ) );
+    }
+
+    public function updatePharmacy( Request $request ) {
+
+        $request->validate( [
+            'pharmacy_name'=>'required',
+            'email'=>'required|email|unique:pharmacies',
+            'contact'=>'required|max:17',
+            'address'=>'required',
+            'horaire'=>'required',
+            'password'=>'required|min:5|max:12'
+        ] );
+
+        $updatedTime = now()->toDateTimeString();
+        
+
+        $res = DB::table( 'pharmacies' )->where( 'id', $request->id )->update( [
+            'pharmacy_name'=>$request->pharmacy_name,
+            'email' => $request->email,
+            'contact' => $request->contact,
+            'address' => $request->address,
+            'horaire' => $request->horaire,
+            'garde' => $request->garde,
+            'longitude' => $request->longitude,
+            'latitude' => $request->latitude,
+            'password' => Hash::make( $request->password )
+        ] );
+        
+
+        if ( $res ) {
+         
+                return back()->with( 'success', 'Mise à jour bien faite' );
+
+        } else {
+            return back()->with( 'fail', 'Il y a un problème , Réessayez slp' );
+        }
+    }
+
+    public function deletePharmacy( $id ) {
+        $res = DB::table( 'pharmacies' )->where( 'id', '=', $id )->delete();
+        if ( $res ) {
+            return back()->with( 'success', 'Pharmacie is deleted successfully' );
+
+        } else {
+            return back()->with( 'fail', 'Something wrong' );
+        }
+    }
+
+    public function dashPharmacy() {
+        $displayData = Pharmacy::all();
+        return view( 'pages.dashboard-pharmacy', compact( 'displayData' ) );
     }
 }

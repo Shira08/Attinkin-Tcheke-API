@@ -6,6 +6,9 @@ use App\Models\Bloodbag;
 use App\Http\Requests\StoreBloodbagRequest;
 use App\Http\Requests\UpdateBloodbagRequest;
 use App\Http\Resources\BloodbagResource;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Http\Request;
+use App\Imports\BloodbagImport;
 use Validator;
 use DB;
 
@@ -131,5 +134,27 @@ class BloodbagController extends Controller
     {
         $bloodbag->delete();
         return response()->json('Bloodbag deleted successfully');
+    }
+    public function listBloodbag()
+    {
+        $bloodbags = Bloodbag::get();
+        return view('pages.bloodbag',['bloodbags'=>$bloodbags]);
+    }
+
+    public function importBloodBag(Request $request)
+    {
+        $request->validate([
+            'excel_file'=>'required|mimes:xlsx'
+        ]);
+
+        Excel::import(new BloodbagImport, $request->file('excel_file'));
+        return redirect()->back()->with('success', 'Les poches de sang ont bien été ajouter!');
+    }
+
+    public function deleteBloodbag($id)
+    {
+        Bloodbag::find($id)->delete();
+  
+        return redirect()->back();
     }
 }
